@@ -8,7 +8,7 @@ import tensorflow as tf
 from sklearn.preprocessing import MinMaxScaler
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dense, Dropout, LSTM
-
+#Thomas
 # Load Data
 company = 'META'
 start = dt.datetime(2012, 1, 1)
