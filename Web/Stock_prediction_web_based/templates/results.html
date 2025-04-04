@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Prediction Results - {{ company }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>Prediction Results for {{ company }}</h1>
+        
+        <h2>Experiment 1: ARIMA + LSTM</h2>
+        <h3>Mean Squared Error Results</h3>
+        {% for step, results in mse_results_arima_lstm.items() %}
+            <h4>Day {{ step + 1 }} Ahead</h4>
+            <p>DL MSE: {{ "%.4f"|format(results['DL']) }}</p>
+            <p>ARIMA MSE: {{ "%.4f"|format(results['ARIMA']) }}</p>
+            <p>Ensemble MSE: {{ "%.4f"|format(results['Ensemble']) }}</p>
+        {% endfor %}
+        
+        <h3>Prediction Plots</h3>
+        {% for i in range(steps_ahead) %}
+            <h4>Day {{ i + 1 }} Ahead Prediction</h4>
+            <img src="data:image/png;base64,{{ plot_images_arima_lstm[i] }}" alt="Prediction Plot Day {{ i + 1 }}">
+        {% endfor %}
+        
+        <h3>Candlestick Chart</h3>
+        <img src="data:image/png;base64,{{ plot_images_arima_lstm[steps_ahead] }}" alt="Candlestick Chart">
+        
+        <h3>Boxplot Chart</h3>
+        <img src="data:image/png;base64,{{ plot_images_arima_lstm[steps_ahead + 1] }}" alt="Boxplot Chart">
+
+        <h2>Experiment 2: SARIMA + GRU</h2>
+        <h3>Mean Squared Error Results</h3>
+        {% for step, results in mse_results_sarima_gru.items() %}
+            <h4>Day {{ step + 1 }} Ahead</h4>
+            <p>DL MSE: {{ "%.4f"|format(results['DL']) }}</p>
+            <p>ARIMA MSE: {{ "%.4f"|format(results['ARIMA']) }}</p>
+            <p>Ensemble MSE: {{ "%.4f"|format(results['Ensemble']) }}</p>
+        {% endfor %}
+        
+        <h3>Prediction Plots</h3>
+        {% for i in range(steps_ahead) %}
+            <h4>Day {{ i + 1 }} Ahead Prediction</h4>
+            <img src="data:image/png;base64,{{ plot_images_sarima_gru[i] }}" alt="Prediction Plot Day {{ i + 1 }}">
+        {% endfor %}
+        
+        <h3>Candlestick Chart</h3>
+        <img src="data:image/png;base64,{{ plot_images_sarima_gru[steps_ahead] }}" alt="Candlestick Chart">
+        
+        <h3>Boxplot Chart</h3>
+        <img src="data:image/png;base64,{{ plot_images_sarima_gru[steps_ahead + 1] }}" alt="Boxplot Chart">
+        
+        <a href="/" class="back-button">Back to Home</a>
+    </div>
+</body>
+</html>
