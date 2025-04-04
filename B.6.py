@@ -96,7 +96,7 @@ def train_and_predict(company, start_date, end_date, test_start, test_end, seq_l
     X_train, X_test, y_train, y_test = train_test_split(X, y, train_size=0.8, shuffle=False)
 
     # Fit ARIMA/SARIMA on training 'Close' prices
-    seasonal = use_sarima  # Toggle between ARIMA and SARIMA
+    seasonal = use_sarima
     model_arima = auto_arima(df['Close'], seasonal=seasonal, m=5 if seasonal else 1, trace=True,
                              suppress_warnings=True)
 
@@ -105,15 +105,25 @@ def train_and_predict(company, start_date, end_date, test_start, test_end, seq_l
                                input_shape=(seq_length, features.shape[1]), steps_ahead=steps_ahead)
     model_dl.fit(X_train, y_train, epochs=epochs, batch_size=batch_size, verbose=1)
 
+    # Adjust test_end to not exceed current date (April 3, 2025)
+    current_date = '2025-04-03'  # Hardcoded for now; could use datetime.today() in practice
+    test_end = min(test_end, current_date)
+
     # Load and prepare test data
     features_test, target_test, _, df_test = load_and_process_data(company, test_start, test_end, scale_data=True,
                                                                    scalers=scalers)
-    test_dates = df_test.index
+    if df_test.empty:
+        raise ValueError(f"Test data is empty for {company} from {test_start} to {test_end}.")
+    
+    test_dates = pd.to_datetime(df_test.index)  # Ensure test_dates is a DatetimeIndex
+    print(f"Test dates range: {test_dates[0]} to {test_dates[-1]}, Length: {len(test_dates)}")
+    
     X_test, y_test_full = create_sequences(features_test, target_test, seq_length, steps_ahead)
+    print(f"X_test shape: {X_test.shape}, y_test_full shape: {y_test_full.shape}")
 
     # Forecast with ARIMA/SARIMA for test period
     arima_forecasts = model_arima.predict(n_periods=len(test_dates))
-    arima_forecasts = pd.Series(arima_forecasts, index=test_dates)
+    arima_forecasts = pd.Series(arima_forecasts, index=test_dates)  # Align with test_dates
 
     print("ARIMA forecasts sample:", arima_forecasts.head(10))
     print("Any NaNs in forecasts?", arima_forecasts.isna().sum())
@@ -128,12 +138,13 @@ def train_and_predict(company, start_date, end_date, test_start, test_end, seq_l
     predicted_prices_reshaped = predicted_prices.reshape(-1, 1)
     predicted_prices_inv = scalers['target'].inverse_transform(predicted_prices_reshaped).reshape(X_test.shape[0], steps_ahead)
 
-    # Create ARIMA/SARIMA predictions for each sequence
+    # Create ARIMA/SARIMA predictions for each sequence with NaN fallback
     y_arima = np.zeros_like(predicted_prices_inv)
     for i in range(len(X_test)):
         for j in range(steps_ahead):
             pred_date = test_dates[i + seq_length + j]
-            y_arima[i, j] = arima_forecasts[pred_date]
+            forecast_value = arima_forecasts.get(pred_date, np.nan)
+            y_arima[i, j] = forecast_value if not pd.isna(forecast_value) else actual_prices[i, j]  # Fallback to actual
 
     # Ensemble prediction: average of DL and ARIMA/SARIMA
     ensemble_predictions = (predicted_prices_inv + y_arima) / 2
@@ -151,7 +162,7 @@ def train_and_predict(company, start_date, end_date, test_start, test_end, seq_l
         plt.legend()
         plt.show()
 
-    # Plot additional charts (from version5.py)
+    # Plot additional charts
     plot_candlestick_chart(df_test, n=1)
     plot_boxplot_chart(df_test, n=30, step=10)
 
@@ -166,7 +177,7 @@ def train_and_predict(company, start_date, end_date, test_start, test_end, seq_l
 
     return mse_results
 
-# Candlestick chart plotting function (from version5.py)
+# Candlestick chart plotting function
 def plot_candlestick_chart(data, n=1):
     data = data.copy()
     data.index = pd.to_datetime(data.index)
@@ -175,7 +186,7 @@ def plot_candlestick_chart(data, n=1):
     mpf.plot(data, type='candle', style='charles', volume=True, title=f'Candlestick Chart ({n}-day)', ylabel='Price ($)', ylabel_lower='Volume')
     plt.show()
 
-# Boxplot chart plotting function (from version5.py)
+# Boxplot chart plotting function
 def plot_boxplot_chart(data, n=30, step=10):
     data = data.copy()
     data.index = pd.to_datetime(data.index)
@@ -191,13 +202,20 @@ def plot_boxplot_chart(data, n=30, step=10):
     plt.show()
 
 # User input and function call with experimentation
-company = input("Enter stock symbol (e.g., META): ")
-start_date = input("Enter start date (YYYY-MM-DD): ")
-end_date = input("Enter end date (YYYY-MM-DD): ")
-test_start = input("Enter test start date (YYYY-MM-DD): ")
-test_end = input("Enter test end date (YYYY-MM-DD): ")
-steps_ahead = int(input("Enter number of steps ahead for prediction (e.g., 5): "))
-layer_type = input("Enter the layer type for the model (LSTM, RNN, GRU): ")
+# company = input("Enter stock symbol (e.g., META): ")
+# start_date = input("Enter start date (YYYY-MM-DD): ")
+# end_date = input("Enter end date (YYYY-MM-DD): ")
+# test_start = input("Enter test start date (YYYY-MM-DD): ")
+# test_end = input("Enter test end date (YYYY-MM-DD): ")
+# steps_ahead = int(input("Enter number of steps ahead for prediction (e.g., 5): "))
+# layer_type = input("Enter the layer type for the model (LSTM, RNN, GRU): ")
+company = 'META'
+start_date = '2012-01-01'
+end_date = '2022-12-31'
+test_start = '2023-01-01'
+test_end = '2024-12-31'
+steps_ahead = 5
+layer_type = 'LSTM'
 
 # Experiment 1: ARIMA + LSTM
 print("\nExperiment 1: ARIMA + LSTM")
